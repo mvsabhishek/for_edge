@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
-
+const Shell = require("node-powershell");
 
 // Json Exchange format - {"Cluster": "Cluster_Name", "Node": "Node_Name", "Status":"Status_Desc"}
 /*const clusters = () => {
@@ -11,11 +11,14 @@ const axios = require('axios');
         'cluster-3': ['SQL6', 'SQL7', 'SQL8']
     }
 };*/
+const ps = new Shell({
+    executionPolicy: 'Unrestricted',
+    noProfile: true
+});
 
 const clusters = {
         'chefsql': ['SQL-SERVER-1', 'SQL-SERVER-2']
 };
-
 
 /* GET home page. */
 router.get('/', (req, res, next) => {
@@ -40,8 +43,16 @@ router.post('/api/begin_updates', (req, res, next) => {
         restarting = [];
         restarted = [];
         Object.keys(mod_clusters).forEach((cluster) => {
-            // Push Job API Code goes here
-            // ... ... ... ...
+            ps.addCommand('cd c:/chef-repo | & \'C:\\chef-repo\\begin_updates_knife.ps1\'')
+            ps.invoke().then((err, res, next) => {
+                if(err){
+                    console.log(err);
+                } 
+                console.log(res);
+            }).catch((err) => {
+                console.log(err);
+            });
+
             response = {};
             response.Cluster = cluster;
             response.Node = mod_clusters[cluster][0];
@@ -104,7 +115,7 @@ router.post('/api/restart_complete', (req, res, next) => {
 
 
 
-router.post('/api/update_status', (req, res, next) => {
+router.post('/api/update_status', (req, res, next) => {  
     if (begin_flag == true) {
         if (req.body.Status == "done") {
             if (!nodes_processed.find(item => { return item.Node == req.body.Node }) || !nodes_processed.length) {
@@ -115,9 +126,16 @@ router.post('/api/update_status', (req, res, next) => {
                 if (!(mod_clusters[String(req.body.Cluster)]) || !mod_clusters[String(req.body.Cluster)].length) {
                     res.json({ "Cluster": req.body.Cluster, "Status": "Finished updating the cluster", "Nodes_Unprocessed": mod_clusters, "Nodes_Processed": nodes_processed, "Updates_Started_On": started })
                 } else {
-                    // Push Job API Code goes here
-                    // ... ... ... ...
                     if(!started.find(item => {return item == mod_clusters[String(req.body.Cluster)][0]})){
+                        ps.addCommand(`cd c:/chef-repo | & \'C:\\chef-repo\\remote_knife.ps1\' -node \'${mod_clusters[String(req.body.Cluster)][0]}\'`)
+                        ps.invoke().then((err, res, next) => {
+                        if(err){
+                        console.log(err);
+                        } 
+                        console.log(res);
+                        }).catch((err) => {
+                        console.log(err);
+                        });
                     started.push(mod_clusters[String(req.body.Cluster)][0]);
                     }
                     res.json({ "Cluster": req.body.Cluster, "Node": mod_clusters[String(req.body.Cluster)][0], "Status": "started", "Nodes_Unprocessed": mod_clusters, "Nodes_Processed": nodes_processed, "Updates_Started_On": started })
