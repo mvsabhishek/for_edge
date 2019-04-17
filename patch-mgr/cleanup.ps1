@@ -8,16 +8,17 @@ Import-Module C:\patch-mgr\util.ps1
 
 
 try{
-sendReboot_complete
-Unregister-ScheduledJob TestStartupScript -ErrorAction Stop
+sendReboot_Complete
 failover_SQL_cluster -toSelf "y"
 $resp = checkServiceStatus -serviceName "MSSQLSERVER"
 if($resp -eq "Running"){
     sendStatus -status "done" -message "Updates installed"
 }
+Unregister-ScheduledJob -Name TestStartupScript | Out-Null -ErrorAction Stop 
 }
 catch{
     $ErrorMessage = $_
+    $ErrorMessage | Add-Content C:\patch-mgr\testlog.txt
     sendStatus -status "error" -error $ErrorMessage
 }
 

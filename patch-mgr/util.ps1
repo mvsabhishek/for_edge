@@ -2,9 +2,26 @@
 # Written by Siva Munukutla
 # Utility variables and functions
 
+# Configure security protocol
+add-type @"
+using System.Net;
+using System.Security.Cryptography.X509Certificates;
+public class TrustAllCertsPolicy : ICertificatePolicy {
+    public bool CheckValidationResult(
+        ServicePoint srvPoint, X509Certificate certificate,
+        WebRequest request, int certificateProblem) {
+        return true;
+    }
+}
+"@
+
+$AllProtocols = [System.Net.SecurityProtocolType]'Ssl3,Tls,Tls11,Tls12'
+[System.Net.ServicePointManager]::SecurityProtocol = $AllProtocols
 
 # Get Hostname
-$thisNode = Get-Content env:COMPUTERNAME
+$thisNode = Get-Content env:COMPUTERNAME | Out-String
+$thisNode = $thisNode -replace "`t|`n|`r",""
+
 
 # Function to perform failover
 
@@ -82,18 +99,22 @@ function sendStatus{
 param([string] $status, [string] $error = "No Error", [string] $message = "")
 
 try{
+$cluster = Get-Cluster| Select-Object Name| %{$_.Name}| Out-String;
+$cluster = $cluster -replace "`t|`n|`r",""
+
 $body = @{
-"Cluster"= Get-Cluster | Select Name | %{$_.Name};
-"Node"=$thisNode;
+"Cluster"= $cluster;
+"Node"=  $thisNode;
 "Status"=$status;
 "Error" = $error;
 "Message" = $message;
 }
 
-$uri = "https://workstation.cheftest.edgenuity.com:3000/api/update_status"
-
+$uri = "http://workstation.cheftest.edgenuity.com:3000/api/update_status"
+ 
 # Send status update to Patching Engine
-Invoke-WebRequest -Method Post -Body ($body|ConvertTo-Json) -URI $uri -ContentType "application/json"
+Invoke-WebRequest -Method Post -Body ($body|ConvertTo-Json) -URI $uri -ContentType "application/json" | Add-Content C:\patch-mgr\testlog.txt
+
 }
 catch{
     Write-Host "HTTP REQUEST FAILED. ERROR: "
@@ -105,9 +126,9 @@ catch{
 function sendReboot{
 
 try{
-
+$cluster = Get-Cluster | Select Name | %{$_.Name};
 $body = @{
-"Cluster"= Get-Cluster | Select Name | %{$_.Name};
+"Cluster"= [string] $cluster;
 "Node"=$thisNode;
 "Status" = "restart";
 }
@@ -115,7 +136,7 @@ $body = @{
 $uri = "http://workstation.cheftest.edgenuity.com:3000/api/restart"
 
 # Send status update to Patching Engine
-Invoke-WebRequest -Method Post -Body ($body|ConvertTo-Json) -URI $uri -ContentType "application/json"
+Invoke-WebRequest -Method Post -Body ($body|ConvertTo-Json) -URI $uri -ContentType "application/json" | Out-Null
 }
 catch{
     Write-Host "HTTP REQUEST FAILED. ERROR: "
@@ -127,9 +148,9 @@ catch{
 function sendReboot_Complete{
 
 try{
-
+$cluster = Get-Cluster | Select Name | %{$_.Name};
 $body = @{
-"Cluster"= Get-Cluster | Select Name | %{$_.Name};
+"Cluster"= [string] $cluster;
 "Node"=$thisNode;
 "Status"= "restart_complete";
 }
@@ -137,11 +158,11 @@ $body = @{
 $uri = "http://workstation.cheftest.edgenuity.com:3000/api/restart_complete"
 
 # Send status update to Patching Engine
-Invoke-WebRequest -Method Post -Body ($body|ConvertTo-Json) -URI $uri -ContentType "application/json"
+Invoke-WebRequest -Method Post -Body ($body|ConvertTo-Json) -URI $uri -ContentType "application/json" | Out-Null
 }
 catch{
     Write-Host "HTTP REQUEST FAILED. ERROR: "
-    Write-Host $_
+    $_ | Add-Content C:\patch-mgr\testlog.txt 
 }
 }
 

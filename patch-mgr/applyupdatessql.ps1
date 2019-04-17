@@ -12,10 +12,12 @@ Write-Host "Installing updates on node $thisNode."
 
 
 try{
+
 # Install updates
 $Installer = New-Object -ComObject Microsoft.Update.Installer
 $Installer.Updates = $SearchResult
 $Result = $Installer.Install()
+
 }
 catch{
     $ErrorMessage = $_
@@ -33,6 +35,7 @@ if ($Result.rebootRequired) {
     shutdown.exe /t 0 /r
     }catch{
         $ErrorMessage = $_
+        $ErrorMessage | Add-Content C:\patch-mgr\testlog.txt
         sendStatus -status "error" -error $ErrorMessage    
     }
 }

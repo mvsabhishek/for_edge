@@ -19,6 +19,7 @@ $SearchResult = $Searcher.Search($Criteria).Updates
 if($SearchResult.Count -eq 0){
 Write-Host "System is up to date. No updates installed."
 sendStatus -status "done" -message "Node up-to-date"
+Exit
 }
 else{
 #Download updates.
@@ -31,11 +32,12 @@ $Downloader.Updates = $SearchResult
 
 $Downloader.Download()
 
-powershell C:\patch-mgr\applyupdatessql.ps1
+& 'C:\patch-mgr\applyupdatessql.ps1'
 }
 }
 catch{
     $ErrorMessage = $_
+    $ErrorMessage | Add-Content C:\patch-mgr\testlog.txt
     sendStatus -status "error" -error $ErrorMessage
 }
 

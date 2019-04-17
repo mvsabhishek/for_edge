@@ -43,7 +43,7 @@ router.post('/api/begin_updates', (req, res, next) => {
         restarting = [];
         restarted = [];
         Object.keys(mod_clusters).forEach((cluster) => {
-            ps.addCommand('cd c:/chef-repo | & \'C:\\chef-repo\\begin_updates_knife.ps1\'')
+            ps.addCommand('cd c:\\chef-repo | & \'C:\\chef-repo\\begin_updates_knife.ps1\'')
             ps.invoke().then((err, res, next) => {
                 if(err){
                     console.log(err);
@@ -116,7 +116,7 @@ router.post('/api/restart_complete', (req, res, next) => {
 
 
 router.post('/api/update_status', (req, res, next) => {  
-    if (begin_flag == true) {
+    if (begin_flag == true) { 
         if (req.body.Status == "done") {
             if (!nodes_processed.find(item => { return item.Node == req.body.Node }) || !nodes_processed.length) {
                 nodes_processed.push({ "Node": req.body.Node, "Status": req.body.Status });
@@ -127,7 +127,8 @@ router.post('/api/update_status', (req, res, next) => {
                     res.json({ "Cluster": req.body.Cluster, "Status": "Finished updating the cluster", "Nodes_Unprocessed": mod_clusters, "Nodes_Processed": nodes_processed, "Updates_Started_On": started })
                 } else {
                     if(!started.find(item => {return item == mod_clusters[String(req.body.Cluster)][0]})){
-                        ps.addCommand(`cd c:/chef-repo | & \'C:\\chef-repo\\remote_knife.ps1\' -node \'${mod_clusters[String(req.body.Cluster)][0]}\'`)
+                        let node_name =  mod_clusters[String(req.body.Cluster)][0] == "SQL-SERVER-2" ? "SQL-Server-2": "SQL-Server-2"; 
+                        ps.addCommand(`cd c:\\chef-repo | & \'C:\\chef-repo\\remote_knife.ps1\' -node \'${node_name}\'`)
                         ps.invoke().then((err, res, next) => {
                         if(err){
                         console.log(err);
