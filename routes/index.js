@@ -63,24 +63,52 @@ router.post('/api/begin_updates', (req, res, next) => {
         begin_flag = true;
         res.json(arr);
     } else {
-        res.json({ "Error": "Updates have already begun.", "Nodes_Processed": nodes_processed, "Updates_Started_On": started });
+        let resp = {}
+        resp.Error = "Updates have already begun."
+        resp.Nodes_Processed = nodes_processed
+        resp.Updates_Started_On = started
+        res.json(resp)
     }
 });
 
 router.post('/api/restart', (req, res, next) => {
     if (begin_flag) {
+        let response = {};
         if(req.body.Status == "restart" && !restarting.find((node) => {return node == req.body.Node}) && !restarted.find((node) => {return node == req.body.Node})){
             restarting.push(req.body.Node);
-            res.json({ "Status": "Restarting", "Nodes_Processed": nodes_processed, "Updates_Started_On": started, "Restarting_nodes": restarting, "Nodes_restarted": restarted  });    
+            response.Status = "Restarting"
+            response.Nodes_Processed = nodes_processed
+            response.Updates_Started_On = started
+            response.Restarting_nodes = restarting
+            response.Nodes_restarted = restarted
+            res.json(response);    
         }
         else if(req.body.Status == "restart" && restarting.find((node) => {return node == req.body.Node}) && !restarted.find((node) => {return node == req.body.Node})){
-                res.json({ "Warning": "Already restarting.", "Nodes_Processed": nodes_processed, "Updates_Started_On": started, "Restarting_nodes": restarting, "Nodes_restarted": restarted });
+            restarting.push(req.body.Node);
+            response.Warning = "Already restarting"
+            response.Nodes_Processed = nodes_processed
+            response.Updates_Started_On = started
+            response.Restarting_nodes = restarting
+            response.Nodes_restarted = restarted
+            res.json(response);
             }
         else if(req.body.Status == "restart" && !restarting.find((node) => {return node == req.body.Node}) && restarted.find((node) => {return node == req.body.Node})){
-                res.json({ "Warning": "Already restarted.", "Nodes_Processed": nodes_processed, "Updates_Started_On": started, "Restarting_nodes": restarting, "Nodes_restarted": restarted });
+            restarting.push(req.body.Node);
+            response.Warning = "Already restarting"
+            response.Nodes_Processed = nodes_processed
+            response.Updates_Started_On = started
+            response.Restarting_nodes = restarting
+            response.Nodes_restarted = restarted
+            res.json(response);
             }
         else {
-        res.json({ "Warning": "Action invalid. Please check the request.", "Nodes_Processed": nodes_processed, "Updates_Started_On": started, "Restarting_nodes": restarting, "Nodes_restarted": restarted });
+            restarting.push(req.body.Node);
+            response.Warning = "Action invalid"
+            response.Nodes_Processed = nodes_processed
+            response.Updates_Started_On = started
+            response.Restarting_nodes = restarting
+            response.Nodes_restarted = restarted
+            res.json(response);
         }
     }
     else{
@@ -89,23 +117,49 @@ router.post('/api/restart', (req, res, next) => {
 });
 
 router.post('/api/restart_complete', (req, res, next) => {
+    let response = {};
     if (begin_flag) {
         if(req.body.Status == "restart_complete" && restarting.find((node) => {return node == req.body.Node}) && !restarted.find((node) => {return node == req.body.Node})){
             restarted.push(req.body.Node);
             restarting = restarting.filter(item => {return item !== req.body.Node})
-            res.json({ "Status": "Restart Complete", "Nodes_Processed": nodes_processed, "Updates_Started_On": started, "Restarting_nodes": restarting, "Nodes_restarted": restarted  });    
+            response.Status = "Restart Complete"
+            response.Nodes_Processed = nodes_processed
+            response.Updates_Started_On = started
+            response.Restarting_nodes = restarting
+            response.Nodes_restarted = restarted
+            res.json(response);    
         }
     else if(req.body.Status == "restart_complete" && restarting.find((node) => {return node == req.body.Node}) && !restarted.find((node) => {return node == req.body.Node})){
-            res.json({ "Warning": "Already restarting.", "Nodes_Processed": nodes_processed, "Updates_Started_On": started, "Restarting_nodes": restarting, "Nodes_restarted": restarted });
+            response.Warning = "Already restarting"
+            response.Nodes_Processed = nodes_processed
+            response.Updates_Started_On = started
+            response.Restarting_nodes = restarting
+            response.Nodes_restarted = restarted
+            res.json(response);
         }
     else if(req.body.Status == "restart_complete" && !restarting.find((node) => {return node == req.body.Node}) && restarted.find((node) => {return node == req.body.Node})){
-            res.json({ "Warning": "Already restarted.", "Nodes_Processed": nodes_processed, "Updates_Started_On": started, "Restarting_nodes": restarting, "Nodes_restarted": restarted });
+            response.Warning = "Already restarting"
+            response.Nodes_Processed = nodes_processed
+            response.Updates_Started_On = started
+            response.Restarting_nodes = restarting
+            response.Nodes_restarted = restarted
+            res.json(response);
         }
     else if(req.body.Status == "restart_complete" && !restarting.find((node) => {return node == req.body.Node}) && !restarted.find((node) => {return node == req.body.Node})){
-            res.json({ "Warning": "Restart not initiated.", "Nodes_Processed": nodes_processed, "Updates_Started_On": started, "Restarting_nodes": restarting, "Nodes_restarted": restarted });
+            response.Warning = "Restart not initiated"
+            response.Nodes_Processed = nodes_processed
+            response.Updates_Started_On = started
+            response.Restarting_nodes = restarting
+            response.Nodes_restarted = restarted
+            res.json(response);
         }
     else {
-        res.json({ "Warning": "Action invalid. Please check the request.", "Nodes_Processed": nodes_processed, "Updates_Started_On": started, "Restarting_nodes": restarting, "Nodes_restarted": restarted });
+            response.Warning = "Action invalid"
+            response.Nodes_Processed = nodes_processed
+            response.Updates_Started_On = started
+            response.Restarting_nodes = restarting
+            response.Nodes_restarted = restarted
+            res.json(response);
         }
     }
     else{
@@ -115,8 +169,9 @@ router.post('/api/restart_complete', (req, res, next) => {
 
 
 
-router.post('/api/update_status', (req, res, next) => {  
-    if (begin_flag == true) { 
+router.post('/api/update_status', (req, res, next) => { 
+    let response = {}; 
+    if (begin_flag == true) {
         if (req.body.Status == "done") {
             if (!nodes_processed.find(item => { return item.Node == req.body.Node }) || !nodes_processed.length) {
                 nodes_processed.push({ "Node": req.body.Node, "Status": req.body.Status });
@@ -124,7 +179,12 @@ router.post('/api/update_status', (req, res, next) => {
                 mod_clusters[req.body.Cluster] = nodes;
                 started = started.filter(item => {return item !== req.body.Node});
                 if (!(mod_clusters[String(req.body.Cluster)]) || !mod_clusters[String(req.body.Cluster)].length) {
-                    res.json({ "Cluster": req.body.Cluster, "Status": "Finished updating the cluster", "Nodes_Unprocessed": mod_clusters, "Nodes_Processed": nodes_processed, "Updates_Started_On": started })
+                    response.Cluster = req.body.Cluster
+                    response.Status = "Finished updating the cluster"
+                    response.Nodes_Unprocessed = mod_clusters
+                    response.Nodes_Processed = nodes_processed
+                    response.Updates_Started_On = started
+                    res.json(response)
                 } else {
                     if(!started.find(item => {return item == mod_clusters[String(req.body.Cluster)][0]})){
                         let node_name =  mod_clusters[String(req.body.Cluster)][0] == "SQL-SERVER-2" ? "SQL-Server-2": "SQL-Server-2"; 
@@ -139,25 +199,49 @@ router.post('/api/update_status', (req, res, next) => {
                         });
                     started.push(mod_clusters[String(req.body.Cluster)][0]);
                     }
-                    res.json({ "Cluster": req.body.Cluster, "Node": mod_clusters[String(req.body.Cluster)][0], "Status": "started", "Nodes_Unprocessed": mod_clusters, "Nodes_Processed": nodes_processed, "Updates_Started_On": started })
+                    response.Cluster = req.body.Cluster
+                    response.Node = mod_clusters[String(req.body.Cluster)][0]
+                    response.Status = "started"
+                    response.Nodes_Unprocessed = mod_clusters
+                    response.Nodes_Processed = nodes_processed
+                    response.Updates_Started_On = started
+                    res.json(response)
                 }
             } else {
                 let stat = nodes_processed.find(item => { return item.Node == req.body.Node });
-                res.json({ "Cluster": req.body.Cluster, "Node": req.body.Node, "Status": stat.Status, "Nodes_Unprocessed": mod_clusters, "Nodes_Processed": nodes_processed, "Updates_Started_On": started })
+                response.Cluster = req.body.Cluster
+                response.Node = req.body.Node
+                response.Status = stat.Status
+                response.Nodes_Unprocessed = mod_clusters
+                response.Nodes_Processed = nodes_processed
+                response.Updates_Started_On = started
+                res.json(response)
             }
         } else if (req.body.Status == "error") {
             nodes_processed.push({ "Node": req.body.Node, "Status": req.body.Status });
             var nodes = mod_clusters[req.body.Cluster].filter(item => {return item !== req.body.Node});
             mod_clusters[req.body.Cluster] = nodes;
             started = started.filter(item => {return item !== req.body.Node});
-            axios.post('http://workstation.cheftest.edgenuity.com:3000/api/reset_update_process')
-            .then(response => {
-                res.json({ "Cluster": req.body.Cluster, "Node": req.body.Node, "Status": "Error", "Message" : "Process stopped due to error","Nodes_Unprocessed": mod_clusters, "Nodes_Completed": nodes_processed, "Updates_Started_On": started });            })
-            .catch(error => {
+            var reset_url = 'http://workstation.cheftest.edgenuity.com:3000/api/reset_update_process'
+            axios.post(reset_url)
+            .then(() => {
+                response.Cluster = req.body.Cluster
+                response.Node = req.body.Node
+                response.Status = "error"
+                response.Message = "Process stopped due to error"
+                response.Nodes_Unprocessed = mod_clusters
+                response.Nodes_Processed = nodes_processed
+                response.Updates_Started_On = started
+                res.json(response)
+            }).catch(error => {
                 console.log(error);
             });
         } else {
-            res.json({ "Error": "Invalid Request", "Nodes_Unprocessed": mod_clusters, "Nodes_Completed": nodes_processed, "Updates_Started_On": started });
+            response.Error = "Invalid request"
+            response.Nodes_Unprocessed = mod_clusters
+            response.Nodes_Processed = nodes_processed
+            response.Updates_Started_On = started
+            res.json(response)
         }
     } else {
         res.json({ "Info": "The process has not been initiated" })
@@ -165,13 +249,20 @@ router.post('/api/update_status', (req, res, next) => {
 });
 
 router.get('/api/', (req, res, next) => {
-    res.json({ "Nodes_Unprocessed": mod_clusters, "Nodes_Processed": nodes_processed, "Updates_Started_On": started });
+    let response = {};
+    response.Nodes_Unprocessed = mod_clusters
+    response.Nodes_Processed = nodes_processed
+    response.Updates_Started_On = started
+    res.json(response)
 });
 
 router.post('/api/reset_update_process', (req, res, next) => {
     // Stop Update Process
     begin_flag = false;
-    res.json({ "Success": "Update Process Reset.", "Nodes_Updated": nodes_processed, "Updates_Started_On": started });
+    response.Success = "Windows Update workflow reset"
+    response.Nodes_Processed = nodes_processed
+    response.Updates_Started_On = started
+    res.json(response)
 });
 
 router.post('/api/uninstall_updates', (res, req, next) => {
