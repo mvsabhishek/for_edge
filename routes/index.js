@@ -3,111 +3,102 @@ const router = express.Router();
 const axios = require('axios');
 const Shell = require("node-powershell");
 
-// Json Exchange format - {"Cluster": "Cluster_Name", "Node": "Node_Name", "Status":"Status_Desc"}
-/*const clusters = () => {
-    return {
-        'cluster-1': ['SQL1', 'SQL2'],
-        'cluster-2': ['SQL3', 'SQL4', 'SQL5'],
-        'cluster-3': ['SQL6', 'SQL7', 'SQL8']
-    }
-};*/
+// Initiate PowerShell object with unrestricted execution policy
 const ps = new Shell({
     executionPolicy: 'Unrestricted',
     noProfile: true
 });
 
+// Json data structure containing cluster name and nodes in that cluster
 const clusters = {
         'chefsql': ['SQL-SERVER-1', 'SQL-SERVER-2']
 };
 
-/* GET home page. */
+// Get Home Page - Default Express app index page
 router.get('/', (req, res, next) => {
     res.render('index', { title: 'Express' });
 });
 
 
-let mod_clusters = clusters;
+let mod_clusters = clusters; // modifiable variable to keep track of the unprocessed nodes
 let begin_flag = false; // false - Update not begun; true - Update has begun
-let nodes_processed = [];
-let started = [];
-let restarting = [];
-let restarted = [];
+let nodes_processed = []; // array of nodes where the process applying windows update is successful
+let started = []; // array of nodes where the process of applying windows update has been initiated
+let restarting = []; // array of nodes which are currently rebooting
+let restarted = []; // array of nodes which have rebooted
 
+
+// Endpoint - /api/begin_updates
+// Description - Begin updates on one node each on all SQL Clusters
 router.post('/api/begin_updates', (req, res, next) => {
-    if (!begin_flag) {
+    // check if the process of applying windows updates has begun - if not, begin the process
+    let response = {};
+    if (!begin_flag) { 
+        // Initialize all the data structures
         mod_clusters = clusters;
-        let response = {};
         let arr = [];
         started = [];
         nodes_processed = [];
         restarting = [];
         restarted = [];
-        Object.keys(mod_clusters).forEach((cluster) => {
-            ps.addCommand('cd c:\\chef-repo | & \'C:\\chef-repo\\begin_updates_knife.ps1\'')
-            ps.invoke().then((err, res, next) => {
-                if(err){
-                    console.log(err);
-                } 
-                console.log(res);
-            }).catch((err) => {
+        // Run the PowerShell script that initiates the process of applying patches
+        ps.addCommand('cd c:\\chef-repo | & \'C:\\chef-repo\\begin_updates_knife.ps1\'')
+        ps.invoke().then((err, res, next) => {
+            if(err){
                 console.log(err);
-            });
-
-            response = {};
-            response.Cluster = cluster;
-            response.Node = mod_clusters[cluster][0];
-            response.Status = "Started";
-            arr.push(response);
-            started.push(mod_clusters[cluster][0])
+            } 
+            console.log(res);
+        }).catch((err) => {
+            console.log(err);
         });
+
+        // Build and send Json response
+        response = {};
+        response.Cluster = cluster;
+        response.Node = mod_clusters[cluster][0];
+        response.Status = "Started";
+        arr.push(response);
+        started.push(mod_clusters[cluster][0])
         begin_flag = true;
         res.json(arr);
+
     } else {
-        let resp = {}
-        resp.Error = "Updates have already begun."
-        resp.Nodes_Processed = nodes_processed
-        resp.Updates_Started_On = started
-        res.json(resp)
+        // Build and send Json response
+        response.Error = "Updates have already begun."
+        response.Nodes_Processed = nodes_processed
+        response.Updates_Started_On = started
+        res.json(response)
     }
 });
 
-router.post('/api/restart', (req, res, next) => {
+// Endpoint - /api/restart
+// Description - This endpoint is accessed by a node to notify that it has initiated reboot
+router.post('/api/restart', (req, res, next) => {   
     if (begin_flag) {
         let response = {};
+        response.Nodes_Processed = nodes_processed
+        response.Updates_Started_On = started
+        response.Restarting_nodes = restarting
+        response.Nodes_restarted = restarted
+        // Check if the node is/has been restarted once
         if(req.body.Status == "restart" && !restarting.find((node) => {return node == req.body.Node}) && !restarted.find((node) => {return node == req.body.Node})){
             restarting.push(req.body.Node);
-            response.Status = "Restarting"
-            response.Nodes_Processed = nodes_processed
-            response.Updates_Started_On = started
             response.Restarting_nodes = restarting
-            response.Nodes_restarted = restarted
+            response.Status = "Restarting"
             res.json(response);    
         }
+        // check if the node is currently restarting
         else if(req.body.Status == "restart" && restarting.find((node) => {return node == req.body.Node}) && !restarted.find((node) => {return node == req.body.Node})){
-            restarting.push(req.body.Node);
             response.Warning = "Already restarting"
-            response.Nodes_Processed = nodes_processed
-            response.Updates_Started_On = started
-            response.Restarting_nodes = restarting
-            response.Nodes_restarted = restarted
             res.json(response);
-            }
+        }
+        // check if the node has already been restarted
         else if(req.body.Status == "restart" && !restarting.find((node) => {return node == req.body.Node}) && restarted.find((node) => {return node == req.body.Node})){
-            restarting.push(req.body.Node);
-            response.Warning = "Already restarting"
-            response.Nodes_Processed = nodes_processed
-            response.Updates_Started_On = started
-            response.Restarting_nodes = restarting
-            response.Nodes_restarted = restarted
+            response.Warning = "Already restarted"
             res.json(response);
             }
         else {
-            restarting.push(req.body.Node);
-            response.Warning = "Action invalid"
-            response.Nodes_Processed = nodes_processed
-            response.Updates_Started_On = started
-            response.Restarting_nodes = restarting
-            response.Nodes_restarted = restarted
+            response.Warning = "Action invalid. Please check the request."
             res.json(response);
         }
     }
@@ -116,49 +107,36 @@ router.post('/api/restart', (req, res, next) => {
     }
 });
 
+// Endpoint - /api/restart_complete
+// Description - This endpoint is accessed by a node to notify that it has completed reboot
 router.post('/api/restart_complete', (req, res, next) => {
-    let response = {};
     if (begin_flag) {
-        if(req.body.Status == "restart_complete" && restarting.find((node) => {return node == req.body.Node}) && !restarted.find((node) => {return node == req.body.Node})){
+        let response = {};
+        response.Nodes_Processed = nodes_processed
+        response.Updates_Started_On = started
+        response.Restarting_nodes = restarting
+        response.Nodes_restarted = restarted
+
+        // check if restart has not been initiated
+        if(req.body.Status == "restart_complete" && !restarting.find((node) => {return node == req.body.Node}) && !restarted.find((node) => {return node == req.body.Node})){
+            response.Warning = "Restart not initiated"
+            res.json(response);
+        }
+        // check if the node has been restarted
+        else if(req.body.Status == "restart_complete" && !restarting.find((node) => {return node == req.body.Node}) && restarted.find((node) => {return node == req.body.Node})){
+            response.Warning = "Restart already completed once"
+            res.json(response);
+        }
+        // check if the node was being restarted
+        else if(req.body.Status == "restart_complete" && restarting.find((node) => {return node == req.body.Node}) && !restarted.find((node) => {return node == req.body.Node})){
             restarted.push(req.body.Node);
             restarting = restarting.filter(item => {return item !== req.body.Node})
-            response.Status = "Restart Complete"
-            response.Nodes_Processed = nodes_processed
-            response.Updates_Started_On = started
             response.Restarting_nodes = restarting
-            response.Nodes_restarted = restarted
+            response.Status = "Restart Complete"
             res.json(response);    
         }
-    else if(req.body.Status == "restart_complete" && restarting.find((node) => {return node == req.body.Node}) && !restarted.find((node) => {return node == req.body.Node})){
-            response.Warning = "Already restarting"
-            response.Nodes_Processed = nodes_processed
-            response.Updates_Started_On = started
-            response.Restarting_nodes = restarting
-            response.Nodes_restarted = restarted
-            res.json(response);
-        }
-    else if(req.body.Status == "restart_complete" && !restarting.find((node) => {return node == req.body.Node}) && restarted.find((node) => {return node == req.body.Node})){
-            response.Warning = "Already restarting"
-            response.Nodes_Processed = nodes_processed
-            response.Updates_Started_On = started
-            response.Restarting_nodes = restarting
-            response.Nodes_restarted = restarted
-            res.json(response);
-        }
-    else if(req.body.Status == "restart_complete" && !restarting.find((node) => {return node == req.body.Node}) && !restarted.find((node) => {return node == req.body.Node})){
-            response.Warning = "Restart not initiated"
-            response.Nodes_Processed = nodes_processed
-            response.Updates_Started_On = started
-            response.Restarting_nodes = restarting
-            response.Nodes_restarted = restarted
-            res.json(response);
-        }
-    else {
-            response.Warning = "Action invalid"
-            response.Nodes_Processed = nodes_processed
-            response.Updates_Started_On = started
-            response.Restarting_nodes = restarting
-            response.Nodes_restarted = restarted
+        else {
+            response.Warning = "Action invalid. Please check the request."
             res.json(response);
         }
     }
@@ -168,16 +146,20 @@ router.post('/api/restart_complete', (req, res, next) => {
 });
 
 
-
+// Endpoint - /api/update_status
+// Description - This endpoint is accessed by a node to update the status be it error or done
 router.post('/api/update_status', (req, res, next) => { 
     let response = {}; 
-    if (begin_flag == true) {
+    if (begin_flag) {
+        // if the status is done, initiate the process of applying Windows Update 
+        // on the next node in the cluster this node belongs to.
         if (req.body.Status == "done") {
             if (!nodes_processed.find(item => { return item.Node == req.body.Node }) || !nodes_processed.length) {
                 nodes_processed.push({ "Node": req.body.Node, "Status": req.body.Status });
                 var nodes = mod_clusters[req.body.Cluster].filter((item) => {return item !== req.body.Node});
                 mod_clusters[req.body.Cluster] = nodes;
                 started = started.filter(item => {return item !== req.body.Node});
+                // check if there are more nodes in the cluster that need Windows Update
                 if (!(mod_clusters[String(req.body.Cluster)]) || !mod_clusters[String(req.body.Cluster)].length) {
                     response.Cluster = req.body.Cluster
                     response.Status = "Finished updating the cluster"
@@ -186,6 +168,8 @@ router.post('/api/update_status', (req, res, next) => {
                     response.Updates_Started_On = started
                     res.json(response)
                 } else {
+                    // check if the process has already been initiated on the node picked for updating
+                    // if yes, the node would be found in the started array
                     if(!started.find(item => {return item == mod_clusters[String(req.body.Cluster)][0]})){
                         let node_name =  mod_clusters[String(req.body.Cluster)][0] == "SQL-SERVER-2" ? "SQL-Server-2": "SQL-Server-2"; 
                         ps.addCommand(`cd c:\\chef-repo | & \'C:\\chef-repo\\remote_knife.ps1\' -node \'${node_name}\'`)
@@ -207,7 +191,8 @@ router.post('/api/update_status', (req, res, next) => {
                     response.Updates_Started_On = started
                     res.json(response)
                 }
-            } else {
+            } 
+            else {
                 let stat = nodes_processed.find(item => { return item.Node == req.body.Node });
                 response.Cluster = req.body.Cluster
                 response.Node = req.body.Node
@@ -217,12 +202,14 @@ router.post('/api/update_status', (req, res, next) => {
                 response.Updates_Started_On = started
                 res.json(response)
             }
-        } else if (req.body.Status == "error") {
+        } 
+        // if the status is error, make a call to /api/stop_updating endpoint to stop the process
+        else if (req.body.Status == "error") {
             nodes_processed.push({ "Node": req.body.Node, "Status": req.body.Status });
             var nodes = mod_clusters[req.body.Cluster].filter(item => {return item !== req.body.Node});
             mod_clusters[req.body.Cluster] = nodes;
             started = started.filter(item => {return item !== req.body.Node});
-            var reset_url = 'http://workstation.cheftest.edgenuity.com:3000/api/reset_update_process'
+            var reset_url = 'http://workstation.cheftest.edgenuity.com:3000/api/stop_updating'
             axios.post(reset_url)
             .then(() => {
                 response.Cluster = req.body.Cluster
@@ -248,6 +235,9 @@ router.post('/api/update_status', (req, res, next) => {
     }
 });
 
+// Endpoint - /api/
+// Description - This endpoint is accessed to get information
+//               on the progress of the workflow
 router.get('/api/', (req, res, next) => {
     let response = {};
     response.Nodes_Unprocessed = mod_clusters
@@ -256,21 +246,30 @@ router.get('/api/', (req, res, next) => {
     res.json(response)
 });
 
-router.post('/api/reset_update_process', (req, res, next) => {
-    // Stop Update Process
+// Endpoint - /api/stop_updating
+// Description - This endpoint is accessed by a node or admin to stop the complete workflow
+router.post('/api/stop_updating', (req, res, next) => {
+    // Stop the process of applying Windows Updates
     begin_flag = false;
-    response.Success = "Windows Update workflow reset"
+    response.Success = "Windows Update workflow has been stopped"
     response.Nodes_Processed = nodes_processed
     response.Updates_Started_On = started
     res.json(response)
 });
 
+// Endpoint - /api/uninstall_updates
+// Description - This endpoint is accessed to initiate the process of uninstalling updates
 router.post('/api/uninstall_updates', (res, req, next) => {
+    // TO-DO
+    // ....
     res.json({ "Info": "This end point will help uninstall updates" })
 });
 
+// Endpoint - /api/update_cluster/:clusterName
+// Description - This endpoint is accessed to install updates on a particular cluster
 router.post('/api/update_cluster/:clusterName', (req, res, next) => {
     res.json({ "Info": `This end point will help install updates on cluster: ${req.params.clusterName}` })
 });
+
 
 module.exports = router;
