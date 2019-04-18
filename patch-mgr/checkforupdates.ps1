@@ -1,4 +1,4 @@
-﻿# cleanup.ps1
+﻿# checkforupdates.ps1
 # Written by Siva Munukutla
 # This script sets up updates if not already setup 
 # and calls the applyupdatessql.ps1 script
@@ -23,14 +23,14 @@ Exit
 }
 else{
 #Download updates.
-
+<#
 $Session = New-Object -ComObject Microsoft.Update.Session -ErrorAction Stop
 
 $Downloader = $Session.CreateUpdateDownloader() 
 
 $Downloader.Updates = $SearchResult
 
-$Downloader.Download()
+$Downloader.Download() #>
 
 & 'C:\patch-mgr\applyupdatessql.ps1'
 }

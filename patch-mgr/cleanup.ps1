@@ -14,7 +14,7 @@ $resp = checkServiceStatus -serviceName "MSSQLSERVER"
 if($resp -eq "Running"){
     sendStatus -status "done" -message "Updates installed"
 }
-Unregister-ScheduledJob -Name TestStartupScript | Out-Null -ErrorAction Stop 
+#Unregister-ScheduledJob -Name TestStartupScript | Out-Null -ErrorAction Stop 
 }
 catch{
     $ErrorMessage = $_
