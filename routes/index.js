@@ -13,7 +13,7 @@ const ps = new Shell({
 
 // Json data structure containing cluster name and nodes in that cluster
 const clusters = {
-        'chefsql': ['SQL-SERVER-1', 'SQL-SERVER-2']
+        'chefsql': ['SQL-Server-1', 'SQL-Server-2']
 };
 
 // Get Home Page - Default Express app index page
@@ -87,19 +87,19 @@ router.post('/api/restart', (req, res, next) => {
         response.Restarting_nodes = restarting
         response.Nodes_restarted = restarted
         // Check if the node is/has been restarted once
-        if(req.body.Status == "restart" && !restarting.find((node) => {return node == req.body.Node}) && !restarted.find((node) => {return node == req.body.Node})){
+        if(req.body.Status == "restart" && !restarting.find((node) => {return node.toUpperCase() == req.body.Node}) && !restarted.find((node) => {return node.toUpperCase() == req.body.Node})){
             restarting.push(req.body.Node);
             response.Restarting_nodes = restarting
             response.Status = "Restarting"
             res.json(response);    
         }
         // check if the node is currently restarting
-        else if(req.body.Status == "restart" && restarting.find((node) => {return node == req.body.Node}) && !restarted.find((node) => {return node == req.body.Node})){
+        else if(req.body.Status == "restart" && restarting.find((node) => {return node.toUpperCase() == req.body.Node}) && !restarted.find((node) => {return node.toUpperCase() == req.body.Node})){
             response.Warning = "Already restarting"
             res.json(response);
         }
         // check if the node has already been restarted
-        else if(req.body.Status == "restart" && !restarting.find((node) => {return node == req.body.Node}) && restarted.find((node) => {return node == req.body.Node})){
+        else if(req.body.Status == "restart" && !restarting.find((node) => {return node.toUpperCase() == req.body.Node}) && restarted.find((node) => {return node.toUpperCase() == req.body.Node})){
             response.Warning = "Already restarted"
             res.json(response);
             }
@@ -125,19 +125,19 @@ router.post('/api/restart_complete', (req, res, next) => {
         response.Nodes_restarted = restarted
 
         // check if restart has not been initiated
-        if(req.body.Status == "restart_complete" && !restarting.find((node) => {return node == req.body.Node}) && !restarted.find((node) => {return node == req.body.Node})){
+        if(req.body.Status == "restart_complete" && !restarting.find((node) => {return node.toUpperCase() == req.body.Node}) && !restarted.find((node) => {return node.toUpperCase() == req.body.Node})){
             response.Warning = "Restart not initiated"
             res.json(response);
         }
         // check if the node has been restarted
-        else if(req.body.Status == "restart_complete" && !restarting.find((node) => {return node == req.body.Node}) && restarted.find((node) => {return node == req.body.Node})){
+        else if(req.body.Status == "restart_complete" && !restarting.find((node) => {return node.toUpperCase() == req.body.Node}) && restarted.find((node) => {return node.toUpperCase() == req.body.Node})){
             response.Warning = "Restart already completed once"
             res.json(response);
         }
         // check if the node was being restarted
-        else if(req.body.Status == "restart_complete" && restarting.find((node) => {return node == req.body.Node}) && !restarted.find((node) => {return node == req.body.Node})){
+        else if(req.body.Status == "restart_complete" && restarting.find((node) => {return node.toUpperCase() == req.body.Node}) && !restarted.find((node) => {return node.toUpperCase() == req.body.Node})){
             restarted.push(req.body.Node);
-            restarting = restarting.filter(item => {return item !== req.body.Node})
+            restarting = restarting.filter(item => {return item.toUpperCase() !== req.body.Node})
             response.Restarting_nodes = restarting
             response.Status = "Restart Complete"
             res.json(response);    
@@ -162,12 +162,12 @@ router.post('/api/update_status', (req, res, next) => {
         // if the status is done, initiate the process of applying Windows Update 
         // on the next node in the cluster this node belongs to.
         if (req.body.Status == "done") {
-            if (!nodes_processed.find(item => { return item.Node == req.body.Node }) || !nodes_processed.length) {
+            if (!nodes_processed.find(item => { return item.Node.toUpperCase() == req.body.Node }) || !nodes_processed.length) {
                 nodes_processed.push({ "Node": req.body.Node, "Status": req.body.Status });
-                var nodes = mod_clusters[req.body.Cluster].filter((item) => {return item !== req.body.Node});
+                var nodes = mod_clusters[req.body.Cluster].filter((item) => {return item.toUpperCase() !== req.body.Node});
                 mod_clusters[req.body.Cluster] = nodes;
                 logger.info(JSON.stringify(mod_clusters[req.body.Cluster]))
-                started = started.filter(item => {return item !== req.body.Node});
+                started = started.filter(item => {return item.toUpperCase() !== req.body.Node});
                 // check if there are more nodes in the cluster that need Windows Update
                 if (!(mod_clusters[String(req.body.Cluster)]) || !mod_clusters[String(req.body.Cluster)].length) {
                     response.Cluster = req.body.Cluster
@@ -185,19 +185,17 @@ router.post('/api/update_status', (req, res, next) => {
                     response.Node = mod_clusters[String(req.body.Cluster)][0]
 
                     if(!started.find(item => {return item == mod_clusters[String(req.body.Cluster)][0]})){
-                        let node_name =  "SQL-Server-2"
+                        let node_name = mod_clusters[String(req.body.Cluster)][0]
                         ps.addCommand(`cd c:\\chef-repo | & \'C:\\chef-repo\\remote_knife.ps1\' -node \'${node_name}\'`)
                         ps.invoke().then((err, res, next) => {
                         if(err){
                             console.log(err);
-                        }else{
-                            started.push(mod_clusters[String(req.body.Cluster)][0]);
-                            response.Status ="started"
-                            response.Updates_Started_On = started
-                        }
-                        }).catch((err) => {
+                        }}).catch((err) => {
                         console.log(err);
                         });
+                        started.push(mod_clusters[String(req.body.Cluster)][0]);
+                        response.Status ="started"
+                        response.Updates_Started_On = started
                     }else{
                     response.Status = "Already started"
                     }
@@ -205,7 +203,7 @@ router.post('/api/update_status', (req, res, next) => {
                 }
             } 
             else {
-                let stat = nodes_processed.find(item => { return item.Node == req.body.Node });
+                let stat = nodes_processed.find(item => { return item.Node.toUpperCase() == req.body.Node });
                 response.Cluster = req.body.Cluster
                 response.Node = req.body.Node
                 response.Status = stat.Status
@@ -220,9 +218,9 @@ router.post('/api/update_status', (req, res, next) => {
         else if (req.body.Status == "error") {
             logger.error(JSON.stringify(req.body))
             nodes_processed.push({ "Node": req.body.Node, "Status": req.body.Status });
-            var nodes = mod_clusters[req.body.Cluster].filter(item => {return item !== req.body.Node});
+            var nodes = mod_clusters[req.body.Cluster].filter(item => {return item.toUpperCase() !== req.body.Node});
             mod_clusters[req.body.Cluster] = nodes;
-            started = started.filter(item => {return item !== req.body.Node});
+            started = started.filter(item => {return item.toUpperCase() !== req.body.Node});
             var reset_url = 'http://workstation.cheftest.edgenuity.com:3000/api/stop_updating'
             axios.post(reset_url)
             .then(() => {

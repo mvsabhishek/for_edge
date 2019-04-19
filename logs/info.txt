@@ -1,6 +1,0 @@
-2019-04-18T21:51:12.260Z : {"Cluster":"chefsql","Node":"SQL-SERVER-1","Error":"No Error","Status":"done","Message":"Node up-to-date"}
-2019-04-18T21:51:12.275Z : ["SQL-SERVER-2"]
-2019-04-18T21:52:17.575Z : {"Cluster":"chefsql","Node":"SQL-SERVER-1","Error":"No Error","Status":"done","Message":"Node up-to-date"}
-2019-04-18T21:53:39.756Z : {"Cluster":"chefsql","Node":"SQL-SERVER-2","Error":"No Error","Status":"done","Message":"Node up-to-date"}
-2019-04-18T21:53:39.756Z : []
-2019-04-18T22:55:36.228Z : {}
