@@ -1,15 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
-const Shell = require("node-powershell");
+const Shell = require("powershell");
 const logger = require('../logger').Logger;
 
-
-// Initiate PowerShell object with unrestricted execution policy
-const ps = new Shell({
-    executionPolicy: 'Unrestricted',
-    noProfile: true
-});
 
 // Json data structure containing cluster name and nodes in that cluster
 const clusters = {
@@ -33,6 +27,7 @@ let restarted = []; // array of nodes which have rebooted
 // Endpoint - /api/begin_updates
 // Description - Begin updates on one node each on all SQL Clusters
 router.post('/api/begin_updates', (req, res, next) => {
+    //console.log('/api/begin_updates '+req.connection.remoteAddress)
     // check if the process of applying windows updates has begun - if not, begin the process
     let response = {};
     if (!begin_flag) { 
@@ -45,25 +40,16 @@ router.post('/api/begin_updates', (req, res, next) => {
         restarted = [];
         begin_flag = true
         // Run the PowerShell script that initiates the process of applying patches
-        ps.addCommand('cd c:\\chef-repo | & \'C:\\chef-repo\\begin_updates_knife.ps1\'')
-        ps.invoke().then((err, res, next) => {
-            if(err){
-                console.log(err);
-            }else{ 
-            console.log(res);
-            }
-        }).catch((err) => {
-            console.log(err);
-        });
-
         // Build and send Json response
         Object.keys(mod_clusters).forEach((cluster) => {
+            let ps1 = new Shell(`cd c:\\chef-repo | & \'C:\\chef-repo\\remote_knife.ps1\' -node \'${mod_clusters[cluster][0]}\'`)
             response = {};
             response.Cluster = cluster;
             response.Node = mod_clusters[cluster][0];
-            response.Status = "Started";
+            response.Status = "started";
             arr.push(response);
             started.push(mod_clusters[cluster][0])
+
         });
         res.json(arr);
 
@@ -78,7 +64,8 @@ router.post('/api/begin_updates', (req, res, next) => {
 
 // Endpoint - /api/restart
 // Description - This endpoint is accessed by a node to notify that it has initiated reboot
-router.post('/api/restart', (req, res, next) => {   
+router.post('/api/restart', (req, res, next) => {
+    //console.log('/api/restart '+req.connection.remoteAddress)   
     if (begin_flag) {
         logger.info(JSON.stringify(req.body))
         let response = {};
@@ -116,6 +103,7 @@ router.post('/api/restart', (req, res, next) => {
 // Endpoint - /api/restart_complete
 // Description - This endpoint is accessed by a node to notify that it has completed reboot
 router.post('/api/restart_complete', (req, res, next) => {
+    //console.log('/api/restart_complete '+req.connection.remoteAddress)
     if (begin_flag) {
         logger.info(JSON.stringify(req.body))
         let response = {};
@@ -155,18 +143,19 @@ router.post('/api/restart_complete', (req, res, next) => {
 
 // Endpoint - /api/update_status
 // Description - This endpoint is accessed by a node to update the status be it error or done
-router.post('/api/update_status', (req, res, next) => { 
+router.post('/api/update_status', (req, res, next) => {
+    //console.log('/api/update_status '+req.connection.remoteAddress) 
     let response = {};
     logger.info(JSON.stringify(req.body))
     if (begin_flag) {
         // if the status is done, initiate the process of applying Windows Update 
         // on the next node in the cluster this node belongs to.
         if (req.body.Status == "done") {
-            if (!nodes_processed.find(item => { return item.Node.toUpperCase() == req.body.Node }) || !nodes_processed.length) {
+            if (!nodes_processed.find(item => { return item.Node.toUpperCase() == req.body.Node })) {
                 nodes_processed.push({ "Node": req.body.Node, "Status": req.body.Status });
                 var nodes = mod_clusters[req.body.Cluster].filter((item) => {return item.toUpperCase() !== req.body.Node});
                 mod_clusters[req.body.Cluster] = nodes;
-                logger.info(JSON.stringify(mod_clusters[req.body.Cluster]))
+                //logger.info(JSON.stringify(mod_clusters[req.body.Cluster]))
                 started = started.filter(item => {return item.toUpperCase() !== req.body.Node});
                 // check if there are more nodes in the cluster that need Windows Update
                 if (!(mod_clusters[String(req.body.Cluster)]) || !mod_clusters[String(req.body.Cluster)].length) {
@@ -186,13 +175,7 @@ router.post('/api/update_status', (req, res, next) => {
 
                     if(!started.find(item => {return item == mod_clusters[String(req.body.Cluster)][0]})){
                         let node_name = mod_clusters[String(req.body.Cluster)][0]
-                        ps.addCommand(`cd c:\\chef-repo | & \'C:\\chef-repo\\remote_knife.ps1\' -node \'${node_name}\'`)
-                        ps.invoke().then((err, res, next) => {
-                        if(err){
-                            console.log(err);
-                        }}).catch((err) => {
-                        console.log(err);
-                        });
+                        let ps2 = new Shell(`cd c:\\chef-repo | & \'C:\\chef-repo\\remote_knife.ps1\' -node \'${node_name}\'`)
                         started.push(mod_clusters[String(req.body.Cluster)][0]);
                         response.Status ="started"
                         response.Updates_Started_On = started
@@ -251,6 +234,7 @@ router.post('/api/update_status', (req, res, next) => {
 // Description - This endpoint is accessed to get information
 //               on the progress of the workflow
 router.get('/api/', (req, res, next) => {
+    //console.log('/api '+req.connection.remoteAddress)
     logger.info(JSON.stringify(req.body))
     let response = {};
     response.Nodes_Unprocessed = mod_clusters
@@ -262,6 +246,7 @@ router.get('/api/', (req, res, next) => {
 // Endpoint - /api/stop_updating
 // Description - This endpoint is accessed by a node or admin to stop the complete workflow
 router.post('/api/stop_updating', (req, res, next) => {
+    //console.log('/api/stop_updating '+req.connection.remoteAddress)
     // Stop the process of applying Windows Updates
     logger.info(JSON.stringify(req.body))
     let response = {}

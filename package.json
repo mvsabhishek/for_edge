@@ -15,7 +15,7 @@
         "http-errors": "^1.6.3",
         "jade": "~1.11.0",
         "morgan": "~1.9.0",
-        "node-powershell": "^4.0.0",
-        "nodemon": "^1.18.11"
+        "nodemon": "^1.18.11",
+        "powershell": "^2.3.1"
     }
 }
